@@ -344,6 +344,11 @@ export class GameManager {
     isLandscape() {
         return window.innerWidth > window.innerHeight;
     }
+    /** Height of the licence footer, when this page has one. */
+    footHeight() {
+        const foot = document.querySelector('.game-foot');
+        return foot ? foot.offsetHeight : 0;
+    }
     /** `applyGameLayoutMargins()` — the user-chosen playfield inset, in dp. */
     layoutMargin() {
         const value = this.isLandscape()
@@ -380,7 +385,7 @@ export class GameManager {
         const margin = this.layoutMargin();
         const barMargin = DP.barMargin;
         const viewportW = window.innerWidth;
-        const viewportH = window.innerHeight;
+        const viewportH = Math.max(1, window.innerHeight - this.footHeight());
         // The playfield inset the user asked for: `applyGameLayoutMargins()` only ever calls
         // `params.setMargins(margin, 0, margin, 0)`, so it is a horizontal inset only, and it
         // is applied to params2 alone — i.e. the playfield and the lower overlay.

@@ -70,6 +70,7 @@ const SHELL = [
     "./cards/engine/ui/strings.js",
     "./cards/engine/ui/theme.js",
     "./cards/engine/util/prng.js",
+    "./LICENSE",
     "./icon-192.png",
     "./icon-512.png",
     "./index.html",
@@ -85,39 +86,48 @@ const SHELL = [
     "./theme.css"
 ];
 
+const SHELL_PATHS = new Set(SHELL.map((path) => new URL(path, self.location).pathname));
+
 let resolved = null;
 
-function resolveCache() {{
+function resolveCache() {
     if (resolved) return Promise.resolve(resolved);
-    return fetch(new URL("./manifest.json", self.location), {{ cache: "no-store" }})
+    return fetch(new URL("./manifest.json", self.location), { cache: "no-store" })
         .then((res) => res.json())
-        .then((data) => {{
+        .then((data) => {
             resolved = PREFIX + "v" + data.version;
             return resolved;
-        }})
-        .catch(() => caches.keys().then((keys) => {{
+        })
+        .catch(() => caches.keys().then((keys) => {
             resolved = keys.find((key) => key.indexOf(PREFIX) === 0) || (PREFIX + "v0");
             return resolved;
-        }}));
-}}
+        }));
+}
 
-self.addEventListener("install", (event) => {{
+function shellPath(url) {
+    if (url.origin !== self.location.origin || url.search) return "";
+    const path = url.pathname.endsWith("/") ? url.pathname + "index.html" : url.pathname;
+    return SHELL_PATHS.has(path) ? path : "";
+}
+
+self.addEventListener("install", (event) => {
     event.waitUntil(resolveCache().then((name) => caches.open(name).then((cache) => cache.addAll(SHELL))));
-}});
+});
 
-self.addEventListener("activate", (event) => {{
+self.addEventListener("activate", (event) => {
     event.waitUntil(resolveCache().then((name) => caches.keys().then((keys) => Promise.all(
         keys.filter((key) => key.indexOf(PREFIX) === 0 && key !== name).map((key) => caches.delete(key))
     ))));
-}});
+});
 
-self.addEventListener("fetch", (event) => {{
+self.addEventListener("fetch", (event) => {
     const req = event.request;
     if (req.method !== "GET") return;
-    const url = new URL(req.url);
-    if (url.origin !== self.location.origin) return;
-    event.respondWith(resolveCache().then((name) => caches.open(name).then((cache) => fetch(req).then((res) => {{
-        if (res && res.ok) cache.put(req, res.clone());
+    const path = shellPath(new URL(req.url));
+    if (!path) return;
+    const stored = new Request(new URL(path, self.location.origin).href);
+    event.respondWith(resolveCache().then((name) => caches.open(name).then((cache) => fetch(req).then((res) => {
+        if (res && res.ok && res.type === "basic") cache.put(stored, res.clone());
         return res;
-    }}).catch(() => cache.match(req).then((hit) => hit || cache.match("./offline.html"))))));
-}});
+    }).catch(() => cache.match(stored).then((hit) => hit || cache.match("./offline.html"))))));
+});

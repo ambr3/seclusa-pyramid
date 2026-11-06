@@ -12,14 +12,8 @@
 
     var copy = window.STAND_COPY || {};
     var KEY_SOUND = "ssc.pref_key_sound_enabled";
-    var KEY_COLOR = "ssc.pref_key_theme_color";
     var KEY_NIGHT = "ssc.pref_key_night_mode";
     var NIGHTS = ["system", "light", "dark"];
-    var PALETTES = [
-        "orange", "green", "blue", "purple",
-        "rose", "teal", "amber", "slate",
-        "navy", "indigo", "lime", "crimson"
-    ];
 
     function read(key, fallback) {
         try {
@@ -67,6 +61,41 @@
 
     var sheet = null;
     var scrim = null;
+    var fullButton = null;
+
+    function fullscreenOn() {
+        return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    }
+
+    function paintFullscreen() {
+        if (!fullButton || !fullButton.isConnected) return;
+        var on = fullscreenOn();
+        fullButton.textContent = on ? "Fullscreen on" : "Fullscreen off";
+        fullButton.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+
+    function clearSaved() {
+        var framed = window.parent !== window;
+        var message = framed
+            ? "This deletes saved Pyramid games and scores on this device. Theme and sound stay, because other games share them."
+            : "This deletes saved games, scores, and settings stored in this browser for Seclusa Pyramid.";
+        if (!window.confirm(message)) return;
+        try {
+            var keys = [];
+            var i;
+            for (i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (!key || key.indexOf("ssc.") !== 0) continue;
+                var pyramid = key.indexOf("ssc.game.Pyramid.") === 0 || key.indexOf("ssc.game.Pyramid_bak.") === 0;
+                var shared = key.indexOf("ssc.game.") !== 0;
+                if (pyramid || (!framed && shared)) keys.push(key);
+            }
+            for (i = 0; i < keys.length; i++) localStorage.removeItem(keys[i]);
+        } catch (err) {
+            return;
+        }
+        window.location.reload();
+    }
 
     function close() {
         if (sheet) sheet.remove();
@@ -84,26 +113,30 @@
         scrim.addEventListener("click", close);
         sheet = el("div", "stand-sheet");
         sheet.setAttribute("role", "dialog");
-        sheet.setAttribute("aria-label", copy.name || "Game menu");
+        sheet.setAttribute("aria-label", "App settings");
 
         var closeBtn = el("button", "stand-close", "Close");
         closeBtn.type = "button";
         closeBtn.addEventListener("click", close);
         sheet.appendChild(closeBtn);
-        sheet.appendChild(el("h2", null, copy.name || "Game"));
 
-        if (copy.sound !== false) {
-            sheet.appendChild(el("h2", null, "Sound"));
-            var soundRow = el("div", "stand-row");
-            var on = read(KEY_SOUND, "true") !== "false";
-            soundRow.appendChild(choice(on ? "Sound on" : "Sound off", on, function () {
-                on = !on;
-                write(KEY_SOUND, on ? "true" : "false");
+        sheet.appendChild(el("h2", null, "Sounds"));
+        var soundItems = Array.isArray(copy.sounds) && copy.sounds.length
+            ? copy.sounds
+            : [{ label: "Sounds", key: KEY_SOUND }];
+        soundItems.forEach(function (item) {
+            if (!item || typeof item.key !== "string" || item.key.indexOf("ssc.pref_key_") !== 0) return;
+            if (item.follow && read(item.follow, "true") === "false") return;
+            var on = read(item.key, "true") !== "false";
+            var label = item.label || "Sound";
+            var row = el("div", "stand-row");
+            row.appendChild(choice(on ? label + " on" : label + " off", on, function () {
+                write(item.key, on ? "false" : "true");
                 close();
                 open();
             }));
-            sheet.appendChild(soundRow);
-        }
+            sheet.appendChild(row);
+        });
 
         sheet.appendChild(el("h2", null, "Theme"));
         var night = read(KEY_NIGHT, "system");
@@ -118,18 +151,6 @@
         });
         sheet.appendChild(nightRow);
 
-        var palette = read(KEY_COLOR, "navy");
-        var paletteRow = el("div", "stand-row");
-        PALETTES.forEach(function (name) {
-            var label = name.charAt(0).toUpperCase() + name.slice(1);
-            paletteRow.appendChild(choice(label, palette === name, function () {
-                write(KEY_COLOR, name);
-                close();
-                open();
-            }));
-        });
-        sheet.appendChild(paletteRow);
-
         sheet.appendChild(el("h2", null, "How to play"));
         (copy.rules || []).forEach(function (line) {
             sheet.appendChild(el("p", null, line));
@@ -139,43 +160,42 @@
         (copy.about || []).forEach(function (line) {
             sheet.appendChild(el("p", null, line));
         });
-        if (copy.source) {
-            var link = el("a", "stand-link", "Source");
-            link.href = copy.source;
-            link.target = "_blank";
-            link.rel = "noopener noreferrer";
-            sheet.appendChild(link);
-        }
 
         sheet.appendChild(el("h2", null, "Fullscreen"));
         var full = el("div", "stand-row");
-        full.appendChild(choice("Toggle fullscreen", false, function () {
+        fullButton = choice(fullscreenOn() ? "Fullscreen on" : "Fullscreen off", fullscreenOn(), function () {
             var node = document.documentElement;
             var active = document.fullscreenElement || document.webkitFullscreenElement;
             var done = active
                 ? (document.exitFullscreen || document.webkitExitFullscreen)
                 : (node.requestFullscreen || node.webkitRequestFullscreen);
-            if (done) {
-                Promise.resolve(done.call(active ? document : node)).catch(function () {});
-            }
-            close();
-        }));
+            if (!done) return;
+            Promise.resolve(done.call(active ? document : node)).then(paintFullscreen).catch(function () {});
+        });
+        full.appendChild(fullButton);
         sheet.appendChild(full);
+
+        sheet.appendChild(el("h2", null, "Saved data"));
+        var data = el("div", "stand-row");
+        data.appendChild(choice("Clear saved data", false, clearSaved));
+        sheet.appendChild(data);
 
         document.body.appendChild(scrim);
         document.body.appendChild(sheet);
     }
 
     function boot() {
-        var button = el("button", "stand-more", "More");
+        var button = el("button", "stand-more", "App settings");
         button.type = "button";
-        button.setAttribute("aria-label", "Theme, sound, how to play and about");
+        button.setAttribute("aria-label", "App settings");
         if (copy.corner) button.setAttribute("data-corner", copy.corner);
         button.addEventListener("click", open);
         document.body.appendChild(button);
         document.addEventListener("keydown", function (event) {
             if (event.key === "Escape") close();
         });
+        document.addEventListener("fullscreenchange", paintFullscreen);
+        document.addEventListener("webkitfullscreenchange", paintFullscreen);
         if ("serviceWorker" in navigator) {
             navigator.serviceWorker.register("./sw.js").catch(function () {});
         }
