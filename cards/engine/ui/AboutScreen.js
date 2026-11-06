@@ -89,11 +89,18 @@ export class AboutScreen {
         });
         info.appendChild(row(strings.about_license, '')).lastElementChild?.append(licenseLink);
         this.body.appendChild(info);
-        /*
-         * The in-game Privacy card used to be built here. Privacy is a property of the
-         * whole app, not of one game, so it is stated once in the Seclusa Games launcher
-         * About dialog rather than repeated inside every game.
-         */
+        const credit = el('div', 'card');
+        const creditBody = el('div', 'card-body');
+        creditBody.append(
+            document.createTextNode('Simple Solitaire Collection - '),
+            link('https://github.com/TobiasBielefeld/Simple-Solitaire', 'https://github.com/TobiasBielefeld/Simple-Solitaire'),
+            document.createTextNode(' - Copyright 2016 - Tobias Bielefeld - tobias.bielefeld@gmail.com - Licensed under GPLv3+ '),
+            link('https://www.gnu.org/licenses/gpl-3.0.html', 'https://www.gnu.org/licenses/gpl-3.0'),
+        );
+        credit.appendChild(creditBody);
+        credit.appendChild(el('div', 'card-body', 'Forked directly from https://github.com/TobiasBielefeld/Simple-Solitaire'));
+        credit.appendChild(el('div', 'card-body', 'Modified to play Pyramid in the browser. No ads, no accounts, and nothing is sent off the device.'));
+        this.body.appendChild(credit);
         this.body.appendChild(el('h2', undefined, strings.about_third_party_licenses));
         for (const [title, usage, url] of LICENSES) {
             const card = el('div', 'card');
@@ -131,15 +138,15 @@ export class AboutScreen {
             contrib.lastElementChild?.append(link, document.createTextNode('  '));
         }
         this.body.appendChild(contrib);
-        /*
-         * The `about_footer` string ("Forked with ... from 🇬🇧") used to be appended
-         * here. Attribution now lives in the launcher's About dialog, which is the
-         * single place a player is told where this came from.
-         */
     }
     destroy() {
         this.root.remove();
     }
+}
+function link(url, label) {
+    const node = el('span', 'link', label);
+    node.addEventListener('click', () => window.open(url, '_blank', 'noopener,noreferrer'));
+    return node;
 }
 function row(title, value) {
     const node = el('div', 'card-body');

@@ -15,7 +15,8 @@ window.STAND_COPY = {
     "You win when the pyramid is clear. On the hard setting the stock and waste must be empty too."
   ],
   "about": [
-    "Pair them off and clear the deck. Forked from Tobias Bielefeld's Simple Solitaire Collection (GPL-3.0), by way of Seclusa Solitaire.",
-    "No ads, no tracking. Games and settings stay on this device."
+    "Forked directly from https://github.com/TobiasBielefeld/Simple-Solitaire",
+    "Simple Solitaire Collection - https://github.com/TobiasBielefeld/Simple-Solitaire - Copyright 2016 - Tobias Bielefeld - tobias.bielefeld@gmail.com - Licensed under GPLv3+ https://www.gnu.org/licenses/gpl-3.0",
+    "Modified to play Pyramid in the browser. No ads, no accounts, and nothing is sent off the device."
   ]
 };
